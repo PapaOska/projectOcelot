@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eleborn</title>
+    <script src="player.js"></script>
+    <script src="dice.js"></script>
+    <link rel="stylesheet" href="style.css" type="text/css">
+</head>
+<body>
+    <div id="main"></div>
+    <div id="hideThis">
+        <button id="btn_start" onclick="startGame()">Spiel starten</button>
+        <button id="pre_dice_element" onclick="rollElement()">Elementar-Pre-Würfler</button>
+        <p id="rolled_element" class="selection_element" style="height: 128px; width: 128px;"></p>
+    </div>
+    
+
+    <script>
+        console.log("auidhjfiausdf");
+        var info;
+        var names = ["Kurt", "Uwe", "Ben", "Tom"];
+        var element = ["Wasser", "Feuer", "Erde", "Luft"];
+        var playerElements = ["Wasser", "Feuer", "Erde", "Luft"];
+        var playerTurnID;
+        var playerCount = 4;
+        var roundCount = 1;
+        var tempCount = 0;
+        var p = [];
+        var dice = new Dice();
+
+        for (var i = 0; i < playerCount; i++) {
+            console.log("Spieler " + names[i] + " wird mit dem Element " + playerElements[i] + " und der ID " + i + " erstellt...");
+            p[i] = new Player(names[i], playerElements[i], i);
+        }
+
+        document.getElementById("hideThis").style.display = "none";
+        start();
+
+
+// ---------------------------------------------------------------------------------------------------------------------------------- //
+
+        // Spiel starten
+        function startGame() {
+            // Abfrage der Spieleranzahl
+            console.log("Abfrage der Spieleranzahl...");
+            do{
+                info = prompt("Anzahl Spieler(2-6):", 2);
+            }while(isNaN(info) || info > 6 || info < 2);
+            playerCount = info;
+
+            // Spielernamen und Element festlegen
+            console.log("Abfrage von Namen und Elementen der Spieler...");
+            for(var i = 0; i < playerCount; i++) {
+                do{
+                    info = prompt("Name von Spieler " + (i+1) + ":", "Namenloser");
+                }while(!isNaN(info) || info == "" || info == null);
+                names[i] = info;
+                do{
+                    info = prompt("Element von " + names[i] + " (Wasser|Feuer|Erde|Luft):", "Erde");
+                }while(info != "Wasser" && info != "Feuer" && info != "Erde" && info != "Luft");
+                playerElements[i] = info;
+            }
+
+            // Spieler erstellen
+            for (var i = 0; i < playerCount; i++) {
+                console.log("Spieler " + names[i] + " wird mit dem Element " + playerElements[i] + " und der ID " + i + " erstellt...");
+                p[i] = new Player(names[i], playerElements[i], i);
+            }
+
+            document.getElementById("hideThis").style.display = "none";
+            start();
+        }
+
+        function start() {
+            if(playerCount > 0) {
+                changeTurn(0);
+            }
+           updateStats();
+        }
+    
+// ---------------------------------------------------------------------------------------------------------------------------------- //
+
+
+        // Wechseln des Spielers, welcher am Zug ist
+        function changeTurn(id) {
+            p.forEach(e => {
+                e.turn = false;
+            });
+            p[id].turn = true;
+            p[id].turnsLeft++;
+            console.log(p[id].name + " ist am Zug!");
+            playerTurnID = id;
+        }
+
+        // Darstellung der Tabellen
+        function updateStats() {
+            var tableContent = "";
+            p.forEach(e => {
+                tableContent += `
+                    <table class="table-container">
+                        <tr>
+                            <td><b>Name</b></td>
+                            <td>` + e.name + `</td>
+                        </tr>
+                        <tr>
+                            <td><b>Element</b></td>
+                            <td>` + e.element + `</td>
+                        </tr>
+                        <tr>
+                            <td><b>Lebenspunkte</b></td>
+                            <td id="lifepoints` + e.id + `">` + e.life + `</td>
+                        </tr>
+                        <tr>
+                            <td><b>Medaillen</b></td>
+                            <td>` + e.medals + `</td>
+                        </tr>
+                        <tr id="spezialTab` + e.id +`">
+                            <td><b>Spezial</b></td>
+                            <td><input type="checkbox" id="spezial` + e.id + `" onclick="updateSkills(` + e.id + `)" disabled></td>
+                        </tr>`;
+                
+                    
+                    if(e.element != "Wasser") {
+                        tableContent += `
+                        <tr id="ultimateTab` + e.id + `">
+                            <td><b>Ultimate</b></td>
+                            <td><input type="checkbox" id="ultimate` + e.id + `" onclick="updateSkills(` + e.id + `)" disabled></td>    
+                        </tr>
+                        `;
+                    }else if(e.element == "Wasser") {
+                        tableContent += `
+                        <tr>
+                            <td><b>Ultimate</b></td>
+                            <td>Auto</td>    
+                        </tr>
+                        `;
+                    }
+
+                    if(e.turn){
+                        tableContent += `
+                            <tr>
+                                <td><b>Zug</b></td>
+                                <td><input type="radio" name="turn" onclick="changeTurn(` + e.id + `)" checked></td>
+                            </tr>
+                        </table>
+                        `;
+                    }else{
+                        tableContent += `
+                            <tr>
+                                <td><b>Zug</b></td>
+                                <td><input type="radio" name="turn" onclick="changeTurn(` + e.id + `)"></td>
+                            </tr>
+                        </table>
+                        `;
+                    }
+            });
+            
+            tableContent += `<br><br><br>`;
+            for(var i = 0; i < 12; i++) {
+                tableContent += `
+                    <input type="radio" id="dice_attack` + (i+1) + `" class="selection_attack" name="attack" onclick="dice.setAttack(` + (i+1) + `)">`;
+            }
+            tableContent += `<br>`;
+            for(var i = 0; i < 6; i++) {
+                tableContent += `
+                    <input type="radio" id="dice_heal` + (i+1) + `" class="selection_heal" name="heal" onclick="dice.setHeal(` + (i+1) + `)">`;
+            }
+            tableContent += `<br>`;
+            for(var i = 0; i < 4; i++) {
+                tableContent += `
+                    <input type="radio" id="dice_element` + element[i] + `" class="selection_element" name="ele" onclick="dice.setElement('` + element[i] + `')">`;
+            }
+
+            tableContent += `<br><br><input type="radio" id="choice_attack" class="selection_attack" name="choice" onclick="dice.setChoice('Angriff')">&nbsp;`;
+            tableContent += `<input type="radio" id="choice_heal" class="selection_heal" name="choice" onclick="dice.setChoice('Heilung')"><br>`;
+
+            tableContent += `
+                <br><br><button id="btn_execute" onclick="execute()">Ausführen</button>
+                <button id="btn_roll" onclick="rollDice()">Roll</button>
+                <button id="roundCount">Runde: ` + roundCount + `</button>
+            `;
+
+            main.innerHTML = tableContent;
+            p.forEach(e => {
+                if(e.medals >= 1 && !e.exhausted && !e.godMode) {
+                    document.getElementById("spezial" + e.id).disabled = false;
+                }
+                if(e.medals >= 3 && e.element != "Wasser" && !e.exhausted && !e.godMode) {
+                    document.getElementById("ultimate" + e.id).disabled = false;
+                }
+                if(e.godMode) {
+                    console.log("Checked " + e.name);
+                    document.getElementById("ultimate" + e.id).checked = true;
+                    document.getElementById("lifepoints" + e.id).innerHTML = e.life + " (Erdschild)";
+                }
+                if(e.life == 0) {
+                    document.getElementById("lifepoints" + e.id).innerHTML = "Erschöpft";
+                }
+            });
+            for(var i = 0; i < 12; i++) {
+                document.getElementById("dice_attack" + (i+1)).style.backgroundImage = num2Pic(i+1);
+            }
+            for(var i = 0; i < 6; i++) {
+                document.getElementById("dice_heal" + (i+1)).style.backgroundImage = num2Pic(i+1);
+            }
+            for(var i = 0; i < 4; i++) {
+                document.getElementById("dice_element" + element[i]).style.backgroundImage = ele2Pic(element[i]);
+            }
+            document.getElementById("choice_attack").style.backgroundImage = "url(Pics/attack.png)";
+            document.getElementById("choice_heal").style.backgroundImage = "url(Pics/heal_preset.png)";
+        }
+
+        // Ausführung der Eingaben
+        function execute() {
+
+            // ----- Spezialfähigkeit ----- //
+            p.forEach(e => {
+                if(e.turn) {
+                    e.turnDone = true;
+                }
+
+                if(document.getElementById("spezial" + e.id).checked) {
+                    if(e.element == "Wasser" && e.turn) {
+                        e.medals--;
+                        e.setLife(e.life + 10);
+                    }
+                    if(e.element == "Feuer" && e.turn) {
+                        e.medals--;
+                        p.forEach(a => {
+                            if(!a.turn) {
+                                a.setLife(a.life - 10);
+                            }
+                        });
+                    }
+                    if(e.element == "Erde") {
+                        e.medals--;
+                        dice.setElement("Erde");
+                    }
+                    if(e.element == "Luft" && e.turn) {
+                        e.medals--;
+                        e.turnsLeft++;
+                    }
+                }
+                
+                // ----- Ultimativfähigkeit ----- //
+                if(e.element != "Wasser") {
+                    if(document.getElementById("ultimate" + e.id).checked) {
+                        if(e.element == "Feuer" && e.turn) {
+                            e.medals -= 3;
+                            var target = getFireballTarget();
+                            console.log(target);
+                            p[target].setLife(p[target].life - 60);
+                        }
+
+                        if(e.element == "Luft" && e.turn) {
+                            e.medals -= 3;
+                        }
+
+                        if(e.element == "Erde" && e.turn) {
+                            if(!e.alreadyUsed) {
+                                tempCount = roundCount;
+                                e.medals -= 3;
+                                e.alreadyUsed = true;
+                            }
+                            e.alreadyUsed = true;
+                            e.godMode = true;
+                            console.log("earthCount: " + tempCount + "\nroundCount: " + roundCount);
+                            if(roundCount >= tempCount+5) {
+                                document.getElementById("ultimate" + e.id).checked = false;
+                                e.godMode = false;
+                                e.alreadyUsed = false;
+                            }
+                        }
+                    }
+                    // if(!document.getElementById("ultimate" + e.id).checked && e.element == "Erde") {
+                    //     e.godMode = false;
+                    //     e.alreadyUsed = false;
+                    // }
+                }
+            });
+
+
+            // ----- Angriff und Heilung ----- //
+            
+            if(p[playerTurnID].element == dice.element && dice.heal == dice.attack) {
+                console.log("Überladung ausgelöst");
+                p[playerTurnID].turnsLeft++;
+                if(p[playerTurnID].life == 0 && p[playerTurnID].exhausted) {
+                    p[playerTurnID].setLife(p[playerTurnID].life + 15);
+                    p[playerTurnID].exhausted = false;
+                }
+                dice.setChoice("Heilung");
+                p[playerTurnID].setLife(p[playerTurnID].life + ((dice.attack + dice.heal) * getMultiplier(p[playerTurnID], dice)));
+                dice.setChoice('Angriff');
+                p.forEach(e => {
+                    if(!e.turn) {
+                        e.setLife(e.life - ((dice.attack + dice.heal) * getMultiplier(e, dice)));
+                    }
+                });
+            }else if(p[playerTurnID].exhausted && p[playerTurnID].element == "Wasser" && p[playerTurnID].medals >= 3) {
+                p[playerTurnID].medals -= 3;
+                p[playerTurnID].exhausted = false;
+                p[playerTurnID].setLife(25);
+                if(dice.choice == "Heilung") {
+                    p[playerTurnID].setLife(p[playerTurnID].life + (dice.heal * getMultiplier(p[playerTurnID], dice)));
+                }else if(dice.choice = "Angriff") {
+                    p.forEach(e => {
+                        if(!e.turn) {
+                            e.setLife(e.life - (dice.attack * getMultiplier(e, dice)));
+                        }
+                    });
+                }
+            }else if(!p[playerTurnID].exhausted && (!p[playerTurnID].godMode || tempCount == roundCount)) {
+                if(dice.heal == dice.attack) {
+                    console.log("Ladung ausgelöst");
+                    p[playerTurnID].turnsLeft++;
+                    if(p[playerTurnID].exhausted && p[playerTurnID].element == "Wasser" && p[playerTurnID].medals >= 3) {
+                        p[playerTurnID].medals -= 3;
+                        p[playerTurnID].exhausted = false;
+                        p[playerTurnID].setLife(25);
+                    }
+                    if(dice.choice == "Heilung") {
+                        p[playerTurnID].setLife(p[playerTurnID].life + ((dice.attack + dice.heal) * getMultiplier(p[playerTurnID], dice)));
+                    }else if(dice.choice == "Angriff") {
+                        p.forEach(e => {
+                            if(!e.turn) {
+                                e.setLife(e.life - ((dice.attack + dice.heal) * getMultiplier(e, dice)));
+                            }
+                        });
+                    }
+                }else if(dice.choice == "Heilung") {
+                    p[playerTurnID].setLife(p[playerTurnID].life + (dice.heal * getMultiplier(p[playerTurnID], dice)));
+                }else if(dice.choice = "Angriff") {
+                    p.forEach(e => {
+                        if(!e.turn) {
+                            e.setLife(e.life - (dice.attack * getMultiplier(e, dice)));
+                        }
+                    });
+                }
+            }
+
+            if(p.every(e => e.turnDone)) {
+                roundCount++;
+                p.forEach(e => {
+                    e.turnDone = false;
+                });
+            }
+
+            p[playerTurnID].turnsLeft--;
+            if(!p[playerTurnID].turnsLeft) {
+                if(playerTurnID == playerCount-1) {
+                    changeTurn(0);
+                }else{
+                    changeTurn(playerTurnID+1);
+                }
+            }
+
+            updateStats();
+        }
+        
+        // Abfrage des Ziels der Feuerultimativfähigkeit
+        function getFireballTarget() {
+            while(true) {
+                for(var a of p) {
+                    if(!a.turn) {
+                        var result = confirm("Feuerball soll " + a.name + " treffen?");
+                        if(result) {
+                            console.log(a.name + " wird von dem Feuerball getroffen und verliert 60 Leben!");
+                            return a.id;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Ausgabe der Attribute aller Spieler und des Würfels
+        function print() {
+            p.forEach(e => {
+                console.log(e);
+            });
+            console.log(dice);
+        }
+
+        // Multipliziert den Effekt der Elemente
+        function getMultiplier(fplayer, fdice) {
+            if(fdice.choice == "Heilung") {
+                if(fplayer.element == "Wasser") {
+                    if(dice.element == "Wasser") {
+                        return 2;
+                    }
+                    if(dice.element == "Feuer") {
+                        return 0.5;
+                    }
+                    if(dice.element == "Erde") {
+                        return 1;
+                    }
+                    if(dice.element == "Luft") {
+                        return 0;
+                    }
+                }else if(fplayer.element == "Feuer") {
+                    if(dice.element == "Wasser") {
+                        return 0;
+                    }
+                    if(dice.element == "Feuer") {
+                        return 2;
+                    }
+                    if(dice.element == "Erde") {
+                        return 0.5;
+                    }
+                    if(dice.element == "Luft") {
+                        return 1;
+                    }
+                }else if(fplayer.element == "Erde") {
+                    if(dice.element == "Wasser") {
+                        return 1;
+                    }
+                    if(dice.element == "Feuer") {
+                        return 0;
+                    }
+                    if(dice.element == "Erde") {
+                        return 2;
+                    }
+                    if(dice.element == "Luft") {
+                        return 0.5;
+                    }
+                }else if(fplayer.element == "Luft") {
+                    if(dice.element == "Wasser") {
+                        return 0.5;
+                    }
+                    if(dice.element == "Feuer") {
+                        return 1;
+                    }
+                    if(dice.element == "Erde") {
+                        return 0;
+                    }
+                    if(dice.element == "Luft") {
+                        return 2;
+                    }
+                }
+            }else if(fdice.choice == "Angriff") {
+                if(fplayer.element == "Wasser") {
+                    if(dice.element == "Wasser") {
+                        return 0;
+                    }
+                    if(dice.element == "Feuer") {
+                        return 0.5;
+                    }
+                    if(dice.element == "Erde") {
+                        return 1;
+                    }
+                    if(dice.element == "Luft") {
+                        return 2;
+                    }
+                }else if(fplayer.element == "Feuer") {
+                    if(dice.element == "Wasser") {
+                        return 2;
+                    }
+                    if(dice.element == "Feuer") {
+                        return 0;
+                    }
+                    if(dice.element == "Erde") {
+                        return 0.5;
+                    }
+                    if(dice.element == "Luft") {
+                        return 1;
+                    }
+                }else if(fplayer.element == "Erde") {
+                    if(dice.element == "Wasser") {
+                        return 1;
+                    }
+                    if(dice.element == "Feuer") {
+                        return 2;
+                    }
+                    if(dice.element == "Erde") {
+                        return 0;
+                    }
+                    if(dice.element == "Luft") {
+                        return 0.5;
+                    }
+                }else if(fplayer.element == "Luft") {
+                    if(dice.element == "Wasser") {
+                        return 0.5;
+                    }
+                    if(dice.element == "Feuer") {
+                        return 1;
+                    }
+                    if(dice.element == "Erde") {
+                        return 2;
+                    }
+                    if(dice.element == "Luft") {
+                        return 0;
+                    }
+                }
+            }else{
+                    console.log(">>> ERROR <<<\n>>> Keine Heilung oder Angriff erkannt <<<");
+            }
+        }
+
+        // Würfeln
+        function rollDice() {
+            console.log("Würfeln...");
+            var tempAttack = Math.floor(Math.random() * 12) + 1;
+            var tempHeal = Math.floor(Math.random() * 6) + 1;
+            var tempElement = element[Math.floor(Math.random() * 4)];
+            dice.setAttack(tempAttack);
+            dice.setHeal(tempHeal);
+            dice.setElement(tempElement);
+            document.getElementById("dice_attack" + tempAttack).checked = true;
+            document.getElementById("dice_heal" + tempHeal).checked = true;
+            document.getElementById("dice_element" + tempElement).checked = true;
+        }
+
+        // Element Würfeln
+        function rollElement() {
+            console.log("Element wird gewürfelt...");
+            var tempElement = element[Math.floor(Math.random() * 4)];
+            dice.setElement(tempElement);
+            document.getElementById("rolled_element").style.backgroundImage = ele2Pic(tempElement);
+        }
+
+        // Spezial- und Ultimativfähigkeitscheckboxen de- und aktivieren
+        function updateSkills(id) {
+            if(p[id].element != "Wasser") {
+                if(document.getElementById("spezial" + id).checked) {
+                    document.getElementById("ultimate" + id).disabled = true;
+                }else if(!document.getElementById("spezial" + id).checked && p[id].medals >= 3) {
+                    document.getElementById("ultimate" + id).disabled = false;
+                }
+
+                if(document.getElementById("ultimate" + id).checked) {
+                    document.getElementById("spezial" + id).disabled = true;
+                }else if(!document.getElementById("ultimate" + id).checked && p[id].medals >= 1) {
+                    document.getElementById("spezial" + id).disabled = false;
+                }
+            }
+        }
+
+        function ele2Pic(ele) {
+            switch(ele) {
+                case "Wasser":
+                    return "url(Pics/water.png)";
+                    break;
+                case "Feuer":
+                    return "url(Pics/fire.png)";
+                    break;
+                case "Erde":
+                    return "url(Pics/earth.png)";
+                    break;
+                case "Luft":
+                    return "url(Pics/air.png)";
+                    break;
+            }
+        }
+
+        function num2Pic(num) {
+            switch(num) {
+                case 1:
+                    return "url(Pics/one.png)";
+                    break;
+                case 2:
+                    return "url(Pics/two.png)";
+                    break;
+                case 3:
+                    return "url(Pics/three.png)";
+                    break;
+                case 4:
+                    return "url(Pics/four.png)";
+                    break;
+                case 5:
+                    return "url(Pics/five.png)";
+                    break;
+                case 6:
+                    return "url(Pics/six.png)";
+                    break;
+                case 7:
+                    return "url(Pics/seven.png)";
+                    break;
+                case 8:
+                    return "url(Pics/eight.png)";
+                    break;
+                case 9:
+                    return "url(Pics/nine.png)";
+                    break;
+                case 10:
+                    return "url(Pics/ten.png)";
+                    break;
+                case 11:
+                    return "url(Pics/eleven.png)";
+                    break;
+                case 12:
+                    return "url(Pics/twelve.png)";
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>
